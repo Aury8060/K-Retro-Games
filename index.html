@@ -129,6 +129,15 @@
         .viewer-thumb:hover, .viewer-thumb.active { border-color: var(--premium-gold); opacity: 1; }
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: none; justify-content: center; align-items: center; color: var(--premium-gold); font-size: 1.5rem; letter-spacing: 2px; }
 
+        /* Estilo do botão flutuante de música */
+        #btn-music-float {
+            position: fixed; bottom: 30px; left: 30px; z-index: 4000; padding: 15px; 
+            border-radius: 50%; font-size: 1.5rem; background: var(--card-bg); 
+            backdrop-filter: blur(5px); box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border: 1px solid var(--premium-gold); color: var(--premium-gold);
+            display: flex; align-items: center; justify-content: center; width: 60px; height: 60px;
+        }
+
         @media (max-width: 850px) {
             header { flex-direction: column; padding: 15px; gap: 15px; text-align: center; }
             .header-controls { justify-content: center; width: 100%; }
@@ -143,6 +152,7 @@
             .dashboard-panel { padding: 20px 15px; }
             #cart-modal { width: 100vw; right: -100vw; padding: 20px; border-left: none; }
             #toast { right: 50%; transform: translateX(50%); bottom: 20px; width: 90%; text-align: center; font-size: 0.9rem; padding: 12px; }
+            #btn-music-float { bottom: 20px; left: 20px; width: 50px; height: 50px; font-size: 1.2rem; }
         }
 
         @media (max-width: 400px) {
@@ -162,6 +172,9 @@
         <img id="viewer-main-img" class="viewer-main-img" src="">
         <div id="viewer-gallery" class="viewer-gallery"></div>
     </div>
+
+    <!-- BOTÃO FLUTUANTE DA MÚSICA PARA TODOS OS USUÁRIOS -->
+    <button id="btn-music-float" onclick="toggleMusica()" title="Ligar/Desligar Trilha Sonora">🔇</button>
 
     <header id="main-header" style="display: none;">
         <h2 onclick="location.reload()" style="cursor:pointer;">K Retro Games</h2>
@@ -446,6 +459,53 @@
         window.chavePixAdmin = ""; 
         let pixInterval = null;
         let valorTotalPixTemporario = 0;
+
+        // --- SISTEMA DE MÚSICA RETRÔ ---
+        // Você pode adicionar quantas músicas quiser aqui nesta lista (06.mp3, 07.mp3, etc).
+        const playlist = ['01.mp3', '02.mp3', '03.mp3', '04.mp3', '05.mp3']; 
+        let audioPlayer = new Audio();
+        let isMusicPlaying = false;
+        let userInteracted = false;
+
+        window.tocarMusicaAleatoria = () => {
+            const indexAleatorio = Math.floor(Math.random() * playlist.length);
+            audioPlayer.src = playlist[indexAleatorio];
+            audioPlayer.play().then(() => {
+                isMusicPlaying = true;
+                document.getElementById('btn-music-float').innerText = '🎵';
+            }).catch(e => {
+                console.log("Autoplay bloqueado aguardando clique.", e);
+            });
+        };
+
+        // Quando a música acabar, toca a próxima aleatoriamente
+        audioPlayer.addEventListener('ended', window.tocarMusicaAleatoria);
+
+        window.toggleMusica = () => {
+            if (isMusicPlaying) {
+                audioPlayer.pause();
+                isMusicPlaying = false;
+                document.getElementById('btn-music-float').innerText = '🔇';
+            } else {
+                if(!audioPlayer.src) {
+                    window.tocarMusicaAleatoria();
+                } else {
+                    audioPlayer.play();
+                    isMusicPlaying = true;
+                    document.getElementById('btn-music-float').innerText = '🎵';
+                }
+            }
+        };
+
+        // Drible no bloqueio de autoplay do navegador:
+        // Assim que o usuário clicar em QUALQUER parte da tela pela primeira vez, a música começa.
+        document.body.addEventListener('click', () => {
+            if (!userInteracted && !isMusicPlaying) {
+                userInteracted = true;
+                window.tocarMusicaAleatoria();
+            }
+        }, { once: true });
+        // ------------------------------------
 
         window.showToast = (msg) => {
             const t = document.getElementById('toast'); t.innerText = msg; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 4000);
@@ -1207,7 +1267,6 @@
             });
         };
 
-        // NOVA FUNÇÃO: Renderiza a lista de CRM baseada nos pedidos globais e usuarios globais
         window.renderHistoricoCRM = () => {
             const list = document.getElementById('admin-historico-list');
             if(!list) return;
@@ -1294,7 +1353,6 @@
                 document.getElementById('btn-tab-admins').style.display = 'block';
             }
 
-            // OUVINTE PARA CARREGAR USUÁRIOS GLOBAIS NO CRM
             onValue(dbRef(db, `${ROOT_DB}/usuarios`), (snapshot) => {
                 window.usuariosGlobais = snapshot.val() || {};
                 if(typeof window.renderHistoricoCRM === 'function') window.renderHistoricoCRM();
@@ -1344,7 +1402,7 @@
 
             onValue(dbRef(db, `${ROOT_DB}/pedidos`), (snapshot) => {
                 const pedidos = snapshot.val() || {};
-                window.pedidosGlobais = pedidos; // Atualiza a variável global pro CRM
+                window.pedidosGlobais = pedidos; 
                 
                 const list = document.getElementById('admin-orders-list');
                 list.innerHTML = '';
@@ -1395,7 +1453,6 @@
                     `;
                 });
 
-                // Atualiza o CRM sempre que entrar um pedido novo
                 if(typeof window.renderHistoricoCRM === 'function') window.renderHistoricoCRM();
             });
         }
